@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Décod'Billes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: chaleureux, ludique, un vrai objet de salon
+IDEA: un plateau en bois verni façon jeu de société des années 70, billes de verre brillantes
+PICTURE: le plateau lui-même, grand, avec ses trous, ses billes et le cache du code secret
+COLOUR and TYPE: noyer profond + laiton + billes vives ; Comic Sans MS partout
+LAYOUT: titre modeste, plateau au centre, palette et jokers à côté ; empilé sur mobile, palette épinglée en bas
+*/
+:root{color-scheme:light dark;
+--bg:light-dark(#efe3cf,#16100b);--bg2:light-dark(#e2d0b2,#0d0906);
+--ink:light-dark(#2b1a0e,#f3e6d2);--muted:light-dark(#6e5440,#b9a189);
+--wood1:#6b3d1f;--wood2:#4a2712;--wood3:#2f180a;--brass:#d9a94a;--brass2:#f5d78a;--hole:#1c0e05;--lie:#e0473a;
+--f:"Comic Sans MS","Comic Sans","Comic Neue",cursive}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;min-height:100vh;color:var(--ink);font:16px/1.5 var(--f);overflow-x:clip;
+background:radial-gradient(1200px 700px at 50% -10%,var(--bg),var(--bg2));}
+main{max-width:1000px;margin:0 auto;padding:clamp(16px,3vw,36px) max(4vw,12px) 48px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px;margin-bottom:18px}
+h1{font:700 clamp(34px,6vw,52px)/1.05 var(--f);margin:0}
+h1 span{display:inline-block;animation:bob 3s ease-in-out infinite}
+.sub{color:var(--muted);margin:4px 0 0;max-width:60ch}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts select,.btn{font:700 15px var(--f);min-height:44px;border-radius:12px;border:1px solid color-mix(in srgb,var(--ink) 20%,transparent);
+background:color-mix(in srgb,var(--bg) 70%,#fff 10%);color:var(--ink);padding:0 14px;cursor:pointer}
+.btn:focus-visible,select:focus-visible,.slot:focus-visible,.pal button:focus-visible,.joker:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.modes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.modes button{font:700 16px var(--f);min-height:44px;padding:0 18px;border-radius:999px;border:2px solid color-mix(in srgb,var(--ink) 18%,transparent);background:transparent;color:var(--ink);cursor:pointer;transition:transform .15s,background .2s}
+.modes button:hover{transform:translateY(-2px)}
+.modes button[aria-pressed=true]{background:var(--wood2);border-color:var(--wood2);color:var(--brass2);box-shadow:0 6px 14px -6px rgba(60,25,0,.7)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:22px;align-items:start}
+
+/* Plateau */
+.board{position:relative;border-radius:26px;padding:18px 16px 20px;
+background:
+ repeating-linear-gradient(92deg,rgba(255,255,255,.035) 0 2px,transparent 2px 9px),
+ repeating-linear-gradient(88deg,rgba(0,0,0,.09) 0 1px,transparent 1px 23px),
+ linear-gradient(160deg,var(--wood1),var(--wood2) 55%,var(--wood3));
+box-shadow:0 30px 60px -20px rgba(30,12,0,.6),inset 0 2px 0 rgba(255,220,170,.25),inset 0 -6px 14px rgba(0,0,0,.45)}
+.secret{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px;border-radius:16px;
+background:linear-gradient(180deg,#24130a,#140a04);box-shadow:inset 0 3px 8px rgba(0,0,0,.7)}
+.secret .lbl{font:700 13px var(--f);color:var(--brass2);opacity:.8;width:64px;flex:none}
+.secret .pegs{display:flex;gap:10px;flex:1;justify-content:center;perspective:500px}
+.cover{position:relative;width:var(--p);height:var(--p);transform-style:preserve-3d;transition:transform .7s cubic-bezier(.3,1.4,.5,1)}
+.cover.open{transform:rotateY(180deg)}
+.cover>div{position:absolute;inset:0;border-radius:50%;backface-visibility:hidden}
+.cover .front{background:radial-gradient(circle at 35% 30%,var(--brass2),var(--brass) 45%,#7a5512);display:grid;place-items:center;color:#4a3205;font:700 20px var(--f)}
+.cover .back{transform:rotateY(180deg)}
+.rows{display:flex;flex-direction:column-reverse;gap:6px}
+.row{display:grid;grid-template-columns:28px minmax(0,1fr) 56px;align-items:center;gap:10px;padding:7px 10px;border-radius:14px;transition:background .3s,box-shadow .3s;position:relative}
+.row.new{animation:rise .5s cubic-bezier(.3,1.5,.5,1)}
+.row.active{background:rgba(255,215,140,.12);box-shadow:inset 0 0 0 1px rgba(245,215,138,.35)}
+.row.liar{background:rgba(224,71,58,.18);box-shadow:inset 0 0 0 2px var(--lie);animation:shake .5s}
+.row.liar .n{color:#ffb3a8}
+.row .tag{position:absolute;right:8px;top:-9px;font:700 11px var(--f);background:var(--lie);color:#fff;border-radius:8px;padding:1px 7px;animation:pop .4s cubic-bezier(.3,1.8,.5,1)}
+.row .n{font:700 13px var(--f);color:rgba(245,215,138,.55);text-align:right}
+.row.active .n{color:var(--brass2)}
+.slots{display:flex;gap:10px;justify-content:center}
+.slot{width:var(--p);height:var(--p);border-radius:50%;border:0;padding:0;background:radial-gradient(circle at 50% 40%,#000,var(--hole) 60%,#3b2010);
+box-shadow:inset 0 3px 6px rgba(0,0,0,.9),0 1px 0 rgba(255,210,160,.18);position:relative;flex:none}
+.row.active .slot{cursor:pointer}
+.peg{position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#fff 0 6%,var(--c) 32%,color-mix(in srgb,var(--c) 55%,#000) 100%);
+box-shadow:0 4px 6px rgba(0,0,0,.5),inset 0 -3px 5px rgba(0,0,0,.25)}
+.peg.drop{animation:drop .45s cubic-bezier(.3,1.6,.55,1)}
+.peg.out{animation:out .2s ease-in forwards}
+.keys{display:grid;grid-template-columns:repeat(var(--kc),12px);gap:5px;justify-content:center}
+.key{width:12px;height:12px;border-radius:50%;background:#140a04;box-shadow:inset 0 2px 3px #000}
+.key.b,.key.w{animation:pop .4s cubic-bezier(.3,1.8,.5,1) both;animation-delay:calc(var(--i)*110ms)}
+.key.b{background:radial-gradient(circle at 35% 30%,#ff8a7a,#d81e1e 50%,#6d0606)}
+.key.w{background:radial-gradient(circle at 35% 30%,#fff,#e8e2d6 55%,#9b917f)}
+.row.shake{animation:shake .4s}
+
+/* Côté */
+.side{display:flex;flex-direction:column;gap:14px}
+.card{border-radius:20px;padding:16px;background:color-mix(in srgb,var(--bg) 80%,#fff 8%);box-shadow:0 10px 30px -18px rgba(40,20,0,.5);border:1px solid color-mix(in srgb,var(--ink) 10%,transparent)}
+.card h2{font:700 15px var(--f);margin:0 0 10px;color:var(--muted)}
+.pal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 6px;justify-items:center}
+.pal button{width:44px;height:44px;border-radius:50%;border:0;cursor:pointer;position:relative;
+background:radial-gradient(circle at 34% 28%,#fff 0 6%,var(--c) 32%,color-mix(in srgb,var(--c) 55%,#000) 100%);
+box-shadow:0 5px 10px rgba(0,0,0,.35);transition:transform .15s,opacity .4s,filter .4s}
+.pal button:hover{transform:translateY(-3px) scale(1.07)}
+.pal button:active{transform:scale(.9)}
+.pal button small{position:absolute;bottom:-4px;right:-4px;font:700 11px var(--f);background:var(--ink);color:var(--bg);border-radius:8px;padding:0 5px}
+.pal button.gone{opacity:.35;filter:grayscale(.8)}
+.pal button.gone::after{content:"";position:absolute;left:-3px;right:-3px;top:50%;height:4px;margin-top:-2px;background:var(--ink);border-radius:2px;transform:rotate(-40deg);animation:pop .4s}
+.pal button.boom{animation:boom .6s}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.btn.go{grid-column:1/-1;background:linear-gradient(180deg,var(--brass2),var(--brass));color:#3b2603;border:0;font-size:17px;box-shadow:0 6px 16px -6px #9a6a14}
+.btn.go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn.go:not(:disabled){animation:glow 1.6s ease-in-out infinite}
+.jokers{display:grid;gap:8px}
+.joker{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;text-align:left;border:0;border-radius:14px;padding:8px 10px;min-height:52px;cursor:pointer;
+font:400 13px/1.3 var(--f);color:var(--ink);background:color-mix(in srgb,var(--brass) 22%,transparent);transition:transform .15s,opacity .3s}
+.joker b{display:block;font-size:15px}
+.joker:hover:not(:disabled){transform:translateX(3px)}
+.joker svg{width:40px;height:40px}
+.joker:disabled{opacity:.4;cursor:default;filter:grayscale(1)}
+.joker.used svg{animation:spin .6s}
+.legend{font-size:14px;color:var(--muted);margin:0;display:grid;gap:6px}
+.legend .dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:8px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:6px}
+.stats b{display:block;font:700 24px var(--f)}
+.stats small{color:var(--muted);font-size:13px}
+
+footer{max-width:1000px;margin:0 auto;padding:22px max(4vw,12px) 32px;border-top:1px solid color-mix(in srgb,var(--ink) 15%,transparent);color:var(--muted);font-size:14px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 24px}
+footer b{color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);opacity:0;background:var(--wood3);color:var(--brass2);font:700 16px var(--f);padding:12px 20px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.4);transition:.35s cubic-bezier(.3,1.5,.5,1);z-index:7;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.modal{position:fixed;inset:0;display:grid;place-items:center;background:rgba(20,8,0,.55);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:5;padding:16px}
+.modal.show{opacity:1;pointer-events:auto}
+.modal .box{background:var(--bg);color:var(--ink);border-radius:24px;padding:28px;max-width:400px;width:100%;text-align:center;transform:scale(.8) translateY(20px);transition:transform .45s cubic-bezier(.3,1.6,.5,1);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal.show .box{transform:none}
+.modal h3{font:700 34px/1.05 var(--f);margin:0 0 8px}
+.modal p{margin:0 0 18px;color:var(--muted)}
+
+.rules .box{max-width:560px;text-align:left;max-height:88vh;overflow:auto;padding:24px 24px 20px}
+.rules h3{font-size:30px}
+.rules h4{font:700 18px var(--f);margin:16px 0 6px;color:var(--wood1)}
+:root[data-theme=dark] .rules h4{color:var(--brass2)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .rules h4{color:var(--brass2)}}
+.rules p,.rules li{color:var(--ink);margin:0 0 8px;border-radius:8px;padding:2px 6px;margin-inline:-6px;transition:background .3s}
+.rules ul{padding-left:22px;margin:0 0 8px}
+.rules .reading{background:color-mix(in srgb,var(--brass) 40%,transparent)}
+.rtop{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 6px}
+.btn.speak{background:var(--wood2);color:var(--brass2);border:0;display:inline-flex;align-items:center;gap:8px}
+.btn.speak svg{width:20px;height:20px}
+.btn.speak.on svg{animation:bob .8s ease-in-out infinite}
+.ex{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center;background:linear-gradient(160deg,var(--wood1),var(--wood3));color:var(--brass2);border-radius:16px;padding:12px 14px;margin:6px 0 10px;font-size:14px}
+.ex .line{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ex .mini{width:26px;height:26px;border-radius:50%;position:relative;flex:none;background:radial-gradient(circle at 34% 28%,#fff 0 6%,var(--c) 32%,color-mix(in srgb,var(--c) 55%,#000) 100%);box-shadow:0 2px 4px rgba(0,0,0,.5)}
+.ex .k{width:12px;height:12px;border-radius:50%;margin-left:4px}
+.rnote{font-size:14px;color:var(--muted)!important}
+canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
+
+@keyframes drop{0%{transform:translateY(-40px) scale(.6);opacity:0}100%{transform:none;opacity:1}}
+@keyframes out{to{transform:scale(0);opacity:0}}
+@keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes glow{50%{box-shadow:0 6px 24px -2px #e0ae4c}}
+@keyframes bob{50%{transform:translateY(-4px) rotate(-4deg)}}
+@keyframes rise{0%{transform:translateY(-20px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes boom{30%{transform:scale(1.4)}60%{transform:scale(.8)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:760px){
+ .layout{grid-template-columns:minmax(0,1fr)}
+ .side{display:contents}
+ .side .card{order:1}
+ .side .card.play{position:sticky;bottom:8px;z-index:3;backdrop-filter:blur(8px);background:color-mix(in srgb,var(--bg) 88%,transparent);order:0}
+ .pal{grid-template-columns:repeat(auto-fit,minmax(44px,1fr))}
+ .actions{grid-template-columns:1fr 1fr 1.4fr}
+ .btn.go{grid-column:auto}
+ .card.play h2{display:none}
+ .toast{bottom:auto;top:16px}
+}
+@media(max-width:600px){.board{padding:12px 8px 14px;border-radius:20px}.row{grid-template-columns:20px minmax(0,1fr) 46px;gap:6px;padding:6px}.slots,.secret .pegs{gap:6px}.secret .lbl{display:none}.keys{grid-template-columns:repeat(var(--kc),10px);gap:4px}.key{width:10px;height:10px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Décod’<span>B</span>illes</h1>
+      <p class="sub" id="rule"></p>
+    </div>
+    <div class="opts">
+      <select id="lvl" aria-label="Difficulté">
+        <option value="4,6,0">Facile · 4 billes, 6 couleurs</option>
+        <option value="4,6,1" selected>Normal · avec doublons</option>
+        <option value="5,8,1">Expert · 5 billes, 8 couleurs</option>
+      </select>
+      <button class="btn" id="rulesBtn">Règles</button>
+      <button class="btn" id="new">Nouvelle partie</button>
+    </div>
+  </header>
+
+  <nav class="modes" id="modes" aria-label="Mode de jeu">
+    <button data-m="classic">Classique</button>
+    <button data-m="liar">Menteur</button>
+    <button data-m="special">Spécial</button>
+  </nav>
+
+  <div class="layout">
+    <section class="board" id="board" aria-label="Plateau">
+      <div class="secret"><span class="lbl">Code</span><div class="pegs" id="secret"></div></div>
+      <div class="rows" id="rows"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card play">
+        <h2>Choisis une couleur</h2>
+        <div class="pal" id="pal"></div>
+        <div class="actions">
+          <button class="btn" id="undo">Effacer</button>
+          <button class="btn" id="clear">Vider</button>
+          <button class="btn go" id="go" disabled>Valider</button>
+        </div>
+      </div>
+      <div class="card" id="jokCard" hidden>
+        <h2>Jokers (une fois chacun)</h2>
+        <div class="jokers">
+          <button class="joker" data-j="loupe">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="17" cy="17" r="10" fill="#bfe3ff" stroke="#3b2a1a" stroke-width="3"/><circle cx="13" cy="13" r="3" fill="#fff"/><path d="M25 25l9 9" stroke="#3b2a1a" stroke-width="5" stroke-linecap="round"/></svg>
+            <span><b>Loupe</b>Révèle une bille du code</span></button>
+          <button class="joker" data-j="bombe">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="18" cy="23" r="12" fill="#2b2b2b"/><circle cx="14" cy="19" r="3" fill="#777"/><path d="M26 13q4-6 9-4" stroke="#8a6a3a" stroke-width="3" fill="none"/><circle cx="35" cy="9" r="3" fill="#ff9b1f"/></svg>
+            <span><b>Bombe</b>Élimine une couleur absente</span></button>
+          <button class="joker" data-j="sablier">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5h20M10 35h20" stroke="#6b3d1f" stroke-width="4" stroke-linecap="round"/><path d="M12 7h16l-8 13 8 13H12l8-13z" fill="#f5e6c8" stroke="#6b3d1f" stroke-width="2"/><path d="M15 31h10l-5-7z" fill="#d9a94a"/></svg>
+            <span><b>Sablier</b>Ajoute 2 essais</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="legend">
+          <span><i class="dot" style="background:#d81e1e"></i>bonne couleur, bien placée</span>
+          <span><i class="dot" style="background:#e8e2d6;box-shadow:inset 0 0 0 1px #9b917f"></i>bonne couleur, mal placée</span>
+          <span>Clavier : chiffres, ⌫ et Entrée. Touche un trou pour le vider.</span>
+        </p>
+      </div>
+      <div class="card stats">
+        <div><b id="sWin">0</b><small>victoires</small></div>
+        <div><b id="sPlay">0</b><small>parties</small></div>
+        <div><b id="sBest">–</b><small>record</small></div>
+      </div>
+    </aside>
+  </div>
+</main>
+<footer>
+  <span>Jeu créé par <b>Marie Frison</b>, professeure d’enseignement professionnel · Lycée Jean Hanzelet</span>
+  <span>Inspiré du jeu Mastermind (Mordecai Meirowitz, 1970)</span>
+</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="box">
+    <h3 id="mTitle"></h3>
+    <p id="mText"></p>
+    <button class="btn go" id="again" style="width:100%">Rejouer</button>
+  </div>
+</div>
+<div class="modal rules" id="rules" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+  <div class="box">
+    <h3 id="rTitle">Règles</h3>
+    <div class="rtop">
+      <button class="btn speak" id="speak"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg><span>Écouter</span></button>
+    </div>
+    <div id="rBody"></div>
+    <button class="btn go" id="rClose" style="width:100%;margin-top:10px">J’ai compris, on joue !</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<canvas id="fx"></canvas>
+
+<script>
+{
+const COLORS=['#e8352e','#2f7de1','#2bb24c','#f7c51e','#a04fd6','#ff8a1f','#1fc4c9','#f05aa6'];
+const NAMES=['rouge','bleu','vert','jaune','violet','orange','turquoise','rose'];
+const MODES={
+  classic:{tries:10,rule:'Trouve le code secret en 10 essais. Les indices disent toujours la vérité.'},
+  liar:{tries:12,rule:'Le maître du jeu ment environ une ligne sur trois : un de ses indices est faux. Tu as 12 essais. Les mensonges sont révélés à la fin.'},
+  special:{tries:10,rule:'10 essais et trois jokers à utiliser une fois chacun : Loupe, Bombe et Sablier.'}
+};
+const $=id=>document.getElementById(id);
+const rowsEl=$('rows'),secretEl=$('secret'),palEl=$('pal'),goBtn=$('go'),board=$('board');
+let mode='classic',L,N,dup,code,cur,guesses,over,tries,lies,revealed,gone,used;
+
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+mode=load('mm-mode','classic');if(!MODES[mode])mode='classic';
+const lv=load('mm-lvl',null);if(lv)$('lvl').value=lv;
+let stats;
+const showStats=()=>{$('sWin').textContent=stats.win;$('sPlay').textContent=stats.play;$('sBest').textContent=stats.best??'–'};
+
+let tt;function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),2600)}
+
+function rowHTML(r,isNew){return `<div class="row${isNew?' new':''}" data-r="${r}"><span class="n">${r+1}</span>
+  <div class="slots">${Array.from({length:L},(_,i)=>`<button class="slot" data-i="${i}" tabindex="-1" aria-label="Trou ${i+1}"></button>`).join('')}</div>
+  <div class="keys">${'<i class="key"></i>'.repeat(L)}</div></div>`}
+
+function newGame(){
+  [L,N,dup]=$('lvl').value.split(',').map(Number);dup=!!dup;
+  const pool=[...Array(N).keys()];code=[];
+  while(code.length<L){const c=pool[Math.floor(Math.random()*pool.length)];if(dup||!code.includes(c))code.push(c)}
+  cur=[];guesses=[];over=false;tries=MODES[mode].tries;lies=[];revealed=new Set();gone=new Set();used=new Set();
+  stats=load('mm-stats-'+mode,{win:0,play:0,best:null});showStats();
+  $('rule').textContent=MODES[mode].rule;
+  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===mode));
+  $('jokCard').hidden=mode!=='special';
+  document.querySelectorAll('.joker').forEach(j=>{j.disabled=false;j.classList.remove('used')});
+  board.style.setProperty('--p',L===5?'clamp(28px,8.5vw,40px)':'clamp(32px,10vw,44px)');
+  board.style.setProperty('--kc',L===5?3:2);
+  secretEl.innerHTML=code.map(c=>`<div class="cover"><div class="front">?</div><div class="back slot"><div class="peg" style="--c:${COLORS[c]}"></div></div></div>`).join('');
+  rowsEl.innerHTML=Array.from({length:tries},(_,r)=>rowHTML(r)).join('');
+  palEl.innerHTML=COLORS.slice(0,N).map((c,i)=>`<button style="--c:${c}" data-c="${i}" aria-label="${NAMES[i]}"><small>${i+1}</small></button>`).join('');
+  $('modal').classList.remove('show');
+  markActive();
+}
+const rowEl=r=>rowsEl.querySelector(`[data-r="${r}"]`);
+function markActive(){
+  rowsEl.querySelectorAll('.row').forEach(e=>e.classList.remove('active'));
+  if(over)return;
+  const row=rowEl(guesses.length);row.classList.add('active');
+  row.querySelectorAll('.slot').forEach(s=>s.tabIndex=0);
+  goBtn.disabled=cur.filter(x=>x!=null).length<L;
+}
+function setSlot(i,c){
+  const s=rowEl(guesses.length).querySelectorAll('.slot')[i];
+  if(c==null){const p=s.querySelector('.peg');if(p){p.classList.add('out');setTimeout(()=>p.remove(),200)}}
+  else s.innerHTML=`<div class="peg drop" style="--c:${COLORS[c]}"></div>`;
+  cur[i]=c;goBtn.disabled=cur.filter(x=>x!=null).length<L;
+}
+function add(c){if(over)return;for(let k=0;k<L;k++)if(cur[k]==null)return setSlot(k,c)}
+function undo(){if(over)return;for(let k=L-1;k>=0;k--)if(cur[k]!=null)return setSlot(k,null)}
+function score(g){
+  let b=0,w=0;const cc={},gc={};
+  g.forEach((x,i)=>{if(x===code[i])b++;else{cc[code[i]]=(cc[code[i]]||0)+1;gc[x]=(gc[x]||0)+1}});
+  for(const k in gc)w+=Math.min(gc[k],cc[k]||0);
+  return[b,w];
+}
+// Mensonge : modifie exactement un indice, sans jamais annoncer une fausse victoire
+function lie(b,w){
+  const o=[];
+  if(b>0){o.push([b-1,w]);o.push([b-1,w+1])}
+  if(w>0){o.push([b,w-1]);if(b+1<L)o.push([b+1,w-1])}
+  if(b+w<L){o.push([b,w+1]);if(b+1<L)o.push([b+1,w])}
+  return o[Math.floor(Math.random()*o.length)];
+}
+function submit(){
+  if(over)return;
+  const row=rowEl(guesses.length);
+  if(cur.filter(x=>x!=null).length<L){row.classList.remove('shake');void row.offsetWidth;row.classList.add('shake');return}
+  const g=cur.slice(0,L);let[b,w]=score(g);const win=b===L;
+  if(mode==='liar'&&!win&&Math.random()<1/3){const t=[b,w];[b,w]=lie(b,w);lies.push({r:guesses.length,t})}
+  guesses.push(g);
+  row.querySelectorAll('.key').forEach((k,i)=>{k.style.setProperty('--i',i);if(i<b)k.classList.add('b');else if(i<b+w)k.classList.add('w')});
+  row.querySelectorAll('.slot').forEach(s=>s.tabIndex=-1);
+  cur=[];
+  if(win)return end(true);
+  if(guesses.length>=tries)return end(false);
+  markActive();
+}
+function end(win){
+  over=true;markActive();goBtn.disabled=true;
+  document.querySelectorAll('.joker').forEach(j=>j.disabled=true);
+  stats.play++;if(win){stats.win++;stats.best=stats.best==null?guesses.length:Math.min(stats.best,guesses.length)}
+  save('mm-stats-'+mode,stats);showStats();
+  secretEl.querySelectorAll('.cover').forEach((c,i)=>setTimeout(()=>c.classList.add('open'),i*160));
+  let t=L*160+300;
+  if(mode==='liar'){
+    lies.forEach((l,i)=>setTimeout(()=>{const r=rowEl(l.r);r.classList.add('liar');
+      r.insertAdjacentHTML('beforeend',`<span class="tag">mensonge · vrai : ${l.t[0]} rouge${l.t[0]>1?'s':''}, ${l.t[1]} blanc${l.t[1]>1?'s':''}</span>`)},t+i*350));
+    t+=lies.length*350;
+  }
+  const n=guesses.length;
+  $('mTitle').textContent=win?(n<=3?'Génial !':n<=6?'Bravo !':'Ouf, gagné !'):'Perdu…';
+  let msg=win?`Code trouvé en ${n} essai${n>1?'s':''}.`:'Le code est révélé sur le plateau. Tu y étais presque !';
+  if(mode==='liar')msg+=lies.length?` Le maître du jeu a menti ${lies.length} fois : les lignes piégées sont en rouge.`:' Incroyable : le maître du jeu n’a jamais menti.';
+  if(mode==='special')msg+=` Jokers utilisés : ${used.size}/3.`;
+  $('mText').textContent=msg;
+  setTimeout(()=>{$('modal').classList.add('show');if(win)confetti()},t+400);
+}
+
+/* Jokers */
+function useJoker(j,btn){
+  if(over||used.has(j))return;
+  if(j==='loupe'){
+    const free=code.map((_,i)=>i).filter(i=>!revealed.has(i));
+    const i=free[Math.floor(Math.random()*free.length)];revealed.add(i);
+    secretEl.querySelectorAll('.cover')[i].classList.add('open');
+    toast(`Loupe : la position ${i+1} est ${NAMES[code[i]]}.`);
+  }else if(j==='bombe'){
+    const abs=[...Array(N).keys()].filter(c=>!code.includes(c)&&!gone.has(c));
+    if(!abs.length){toast('Boum… mais toutes les couleurs sont dans le code !')}
+    else{const c=abs[Math.floor(Math.random()*abs.length)];gone.add(c);
+      const b=palEl.querySelector(`[data-c="${c}"]`);b.classList.add('boom');setTimeout(()=>b.classList.add('gone'),300);
+      boomFx(b);toast(`Bombe : le ${NAMES[c]} n’est pas dans le code.`)}
+  }else if(j==='sablier'){
+    rowsEl.insertAdjacentHTML('beforeend',rowHTML(tries,true)+rowHTML(tries+1,true));tries+=2;
+    toast('Sablier : 2 essais en plus !');
+  }
+  used.add(j);btn.classList.add('used');btn.disabled=true;
+}
+
+/* Effets */
+const fx=$('fx'),ctx=fx.getContext('2d');let parts=[],raf=null;
+const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function burst(x,y,n,cols,spd,up){
+  if(reduce())return;
+  fx.width=innerWidth*devicePixelRatio;fx.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=Math.random()*spd;
+    parts.push({x,y,vx:up?(Math.random()-.5)*14:Math.cos(a)*v,vy:up?-Math.random()*14-4:Math.sin(a)*v,r:Math.random()*5+3,c:cols[i%cols.length],a:Math.random()*6,va:(Math.random()-.5)*.3,round:Math.random()<.5,life:0})}
+  if(!raf)tick();
+}
+const confetti=()=>burst(innerWidth/2,innerHeight*.45,160,COLORS,0,true);
+function boomFx(el){const r=el.getBoundingClientRect();burst(r.left+r.width/2,r.top+r.height/2,40,['#ff9b1f','#f7c51e','#555','#e8352e'],7)}
+function tick(){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  parts.forEach(p=>{p.vy+=.35;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.a+=p.va;p.life++;
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.c;ctx.globalAlpha=Math.max(0,1-p.life/180);
+    if(p.round){ctx.beginPath();ctx.arc(0,0,p.r*.7,0,7);ctx.fill()}else ctx.fillRect(-p.r,-p.r/3,p.r*2,p.r*.7);ctx.restore()});
+  parts=parts.filter(p=>p.life<180&&p.y<innerHeight+40);
+  raf=parts.length?requestAnimationFrame(tick):(ctx.clearRect(0,0,innerWidth,innerHeight),null);
+}
+
+
+/* Règles + lecture à voix haute */
+const peg=c=>`<i class="mini" style="--c:${COLORS[c]}"></i>`;
+const kk=c=>`<i class="k" style="background:${c}"></i>`;
+const COMMON=`
+<h4>Le but</h4>
+<p>Un code secret de billes de couleur est caché sous les pastilles dorées. Tu dois le retrouver en un minimum d’essais.</p>
+<h4>Comment jouer</h4>
+<p>Touche les couleurs pour remplir la ligne surlignée, de gauche à droite. Touche un trou pour retirer une bille. Quand la ligne est pleine, appuie sur Valider.</p>
+<h4>Les indices</h4>
+<ul><li>Une petite bille rouge : une de tes billes a la bonne couleur et est à la bonne place.</li>
+<li>Une petite bille blanche : une de tes billes a la bonne couleur, mais pas à la bonne place.</li>
+<li>Rien : cette couleur n’est pas dans le code, ou elle y est déjà comptée.</li>
+<li>Attention : les indices ne disent pas quelle bille est concernée.</li></ul>
+<div class="ex" aria-hidden="true"><span>Code</span><span class="line">${peg(0)}${peg(1)}${peg(2)}${peg(3)}</span>
+<span>Essai</span><span class="line">${peg(0)}${peg(2)}${peg(5)}${peg(1)} ${kk('#d81e1e')}${kk('#eee')}${kk('#eee')}</span></div>
+<p>Exemple : le code est rouge, bleu, vert, jaune. Tu proposes rouge, vert, orange, bleu. Tu obtiens un rouge, car le rouge est bien placé, et deux blancs, car le vert et le bleu sont dans le code mais pas à la bonne place. L’orange n’est pas dans le code.</p>
+<p class="rnote">En niveau Normal et Expert, une même couleur peut apparaître plusieurs fois dans le code.</p>`;
+const RULES={
+ classic:{t:'Mode Classique',b:`<h4>Ce mode</h4><p>Tu as 10 essais. Les indices disent toujours la vérité.</p>`},
+ liar:{t:'Mode Menteur',b:`<h4>Ce mode</h4><p>Tu as 12 essais, mais le maître du jeu est un tricheur. Environ une ligne sur trois, il ment sur un seul indice : un rouge ou un blanc en trop, en moins, ou échangé.</p>
+<p>Il ne ment jamais quand tu as trouvé le code : si tous les indices sont rouges, c’est forcément gagné.</p>
+<p>Astuce : compare tes lignes entre elles. Si un indice contredit tous les autres, c’est peut-être un mensonge.</p>
+<p>À la fin de la partie, les lignes où il a menti s’allument en rouge, avec le vrai résultat.</p>`},
+ special:{t:'Mode Spécial',b:`<h4>Ce mode</h4><p>Tu as 10 essais et trois jokers. Chaque joker ne sert qu’une seule fois par partie.</p>
+<ul><li>La Loupe dévoile une bille du code secret.</li>
+<li>La Bombe barre une couleur qui n’est pas dans le code.</li>
+<li>Le Sablier te donne deux essais en plus.</li></ul>
+<p>Astuce : utilise la Bombe au début pour éliminer une couleur, et garde le Sablier pour la fin.</p>`}
+};
+const synth=window.speechSynthesis;let reading=false;
+function stopSpeak(){reading=false;try{synth&&synth.cancel()}catch(e){}
+  $('speak').classList.remove('on');$('speak').querySelector('span').textContent='Écouter';
+  document.querySelectorAll('.rules .reading').forEach(e=>e.classList.remove('reading'))}
+function speak(){
+  if(!synth||typeof SpeechSynthesisUtterance==='undefined'){toast('La lecture à voix haute n’est pas disponible sur ce navigateur.');return}
+  if(reading)return stopSpeak();
+  const parts=[$('rTitle'),...$('rBody').querySelectorAll('h4,p,li')];
+  const voices=synth.getVoices(),v=voices.find(v=>/^fr/i.test(v.lang)&&/fr-FR/i.test(v.lang))||voices.find(v=>/^fr/i.test(v.lang));
+  reading=true;$('speak').classList.add('on');$('speak').querySelector('span').textContent='Arrêter';
+  try{synth.cancel()}catch(e){}
+  parts.forEach((el,i)=>{const u=new SpeechSynthesisUtterance(el.textContent);u.lang='fr-FR';if(v)u.voice=v;u.rate=.95;
+    u.onstart=()=>{document.querySelectorAll('.rules .reading').forEach(e=>e.classList.remove('reading'));el.classList.add('reading');el.scrollIntoView({block:'nearest',behavior:'smooth'})};
+    if(i===parts.length-1)u.onend=()=>stopSpeak();
+    synth.speak(u)});
+}
+function openRules(){
+  stopSpeak();$('rTitle').textContent=RULES[mode].t;$('rBody').innerHTML=RULES[mode].b+COMMON;
+  $('rules').classList.add('show');$('rules').querySelector('.box').scrollTop=0;
+  save('mm-seen-'+mode,true);
+}
+function closeRules(){stopSpeak();$('rules').classList.remove('show')}
+if(synth&&synth.onvoiceschanged!==undefined)synth.onvoiceschanged=()=>{};
+$('rulesBtn').addEventListener('click',openRules);
+$('speak').addEventListener('click',speak);
+$('rClose').addEventListener('click',closeRules);
+$('rules').addEventListener('click',e=>{if(e.target.id==='rules')closeRules()});
+
+palEl.addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b)add(+b.dataset.c)});
+rowsEl.addEventListener('click',e=>{const s=e.target.closest('.slot');if(!s||over)return;
+  if(s.closest('.row')!==rowEl(guesses.length))return;const i=+s.dataset.i;if(cur[i]!=null)setSlot(i,null)});
+document.querySelectorAll('.joker').forEach(b=>b.addEventListener('click',()=>useJoker(b.dataset.j,b)));
+$('modes').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;mode=b.dataset.m;save('mm-mode',mode);newGame();if(!load('mm-seen-'+mode,false))openRules()});
+goBtn.addEventListener('click',submit);
+$('undo').addEventListener('click',undo);
+$('clear').addEventListener('click',()=>{for(let k=0;k<L;k++)if(cur[k]!=null)setSlot(k,null)});
+$('new').addEventListener('click',newGame);
+$('again').addEventListener('click',newGame);
+$('lvl').addEventListener('change',()=>{save('mm-lvl',$('lvl').value);newGame()});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='SELECT')return;
+  if($('rules').classList.contains('show')){if(e.key==='Escape')closeRules();return}
+  if($('modal').classList.contains('show')){if(e.key==='Enter'){e.preventDefault();newGame()}return}
+  const n=parseInt(e.key,10);
+  if(n>=1&&n<=N)add(n-1);
+  else if(e.key==='Backspace'){e.preventDefault();undo()}
+  else if(e.key==='Enter'&&!e.target.closest('button')){e.preventDefault();submit()}
+});
+newGame();
+if(!load('mm-seen-'+mode,false))openRules();
+}
+</script>
+</body>
+</html>
